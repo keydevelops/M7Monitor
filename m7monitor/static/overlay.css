@@ -1,0 +1,79 @@
+html, body {
+    margin: 0;
+    background: transparent;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
+}
+
+.box {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 18px 26px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 22px;
+    text-shadow: 0 3px 12px #000;
+    min-width: 280px;
+}
+
+.emoji {
+    font-size: 72px;
+    line-height: 0.9;
+    text-align: center;
+    display: inline-block;
+}
+
+.label {
+    font-size: 34px;
+    font-weight: 700;
+    color: #ff5c7a;
+}
+
+.value {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 0.9;
+    min-width: 150px;
+    text-align: center;
+}
+
+.unit {
+    font-size: 38px;
+    color: #ddd;
+}
+
+.meta {
+    font-size: 18px;
+    color: #bbb;
+    margin-top: 8px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Heart rate color states */
+.stale .value {
+    color: #aaa;
+}
+
+.err .value {
+    color: #ffcc00;
+}
+
+.green .value {
+    color: #29ff75;
+}
+
+.yellow .value {
+    color: #ffd23f;
+}
+
+.red .value {
+    color: #ff3b30;
+}
+
+.plain .value {
+    color: #fff;
+}
