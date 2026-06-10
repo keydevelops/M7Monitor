@@ -17,7 +17,7 @@ _load_env()
 
 # Just settings
 TARGET_NAME_KEY = os.getenv("TARGET_NAME_KEY", "Smart Band")
-AUTH_KEY = os.getenv("AUTH_KEY", "e4c0e04a910e41bde0ab1a6e78885370")
+AUTH_KEY = os.getenv("AUTH_KEY")
 OVERLAY_HOST = os.getenv("OVERLAY_HOST", "127.0.0.1")
 OVERLAY_PORT = int(os.getenv("OVERLAY_PORT", "8765"))
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "61"))
@@ -25,7 +25,6 @@ INITIAL_FETCH_MINUTES = int(os.getenv("INITIAL_FETCH_MINUTES", "15"))
 STALE_AFTER_SECONDS = int(os.getenv("STALE_AFTER_SECONDS", "180"))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 DISABLE_COLORS = os.getenv("DISABLE_COLORS", "False").lower() in ("true", "1", "yes")
-
 
 # Mi Band 7 Characteristics
 UUID_RAW_SENSOR_CONTROL = "00000001-0000-3512-2118-0009af100700"
