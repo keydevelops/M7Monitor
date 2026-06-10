@@ -2,18 +2,18 @@ import os
 import dotenv
 from pathlib import Path
 
-# def _load_env():
-#     env_path = Path(__file__).parent.parent / ".env"
-#     if env_path.exists():
-#         with open(env_path, "r", encoding="utf-8") as f:
-#             for line in f:
-#                 line = line.strip()
-#                 if line and not line.startswith("#") and "=" in line:
-#                     key, value = line.split("=", 1)
-#                     os.environ.setdefault(key.strip(), value.strip())
+def _load_env():
+    env_path = Path(__file__).parent.parent / ".env"
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), value.strip())
 
 
-# _load_env()
+_load_env()
 
 # Just settings
 TARGET_NAME_KEY = os.getenv("TARGET_NAME_KEY", "Smart Band")
