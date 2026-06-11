@@ -104,7 +104,7 @@ I don't think so. But I think Xiaomi changed the protocols or something like tha
 
 ## Credits
 
-Thanks to [patryk-york](https://github.com/patryk-york) for the [miband-7-monitor](https://github.com/patryk-york/miband-7-monitor) implementation.
+Thanks to [patryk-york](https://github.com/patyork) for the [miband-7-monitor](https://github.com/patyork/miband-7-monitor) implementation.
 
 Thanks to [Freeyourgadget](https://codeberg.org/Freeyourgadget) for the [GadgetBridge](https://codeberg.org/Freeyourgadget/Gadgetbridge/) app.
 
