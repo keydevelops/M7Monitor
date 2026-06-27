@@ -1,5 +1,4 @@
 import os
-import dotenv
 from pathlib import Path
 
 def _load_env():
@@ -21,7 +20,7 @@ AUTH_KEY = os.getenv("AUTH_KEY")
 OVERLAY_HOST = os.getenv("OVERLAY_HOST", "127.0.0.1")
 OVERLAY_PORT = int(os.getenv("OVERLAY_PORT", "8765"))
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "61"))
-INITIAL_FETCH_MINUTES = int(os.getenv("INITIAL_FETCH_MINUTES", "15"))
+INITIAL_FETCH_MINUTES = int(os.getenv("INITIAL_FETCH_MINUTES", "720"))
 STALE_AFTER_SECONDS = int(os.getenv("STALE_AFTER_SECONDS", "180"))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 DISABLE_COLORS = os.getenv("DISABLE_COLORS", "False").lower() in ("true", "1", "yes")
@@ -35,6 +34,7 @@ UUID_CHUNKED_WRITE = "00000016-0000-3512-2118-0009af100700"
 UUID_CHUNKED_READ = "00000017-0000-3512-2118-0009af100700"
 UUID_HEARTRATE = "00002a37-0000-1000-8000-00805f9b34fb"
 UUID_HEARTRATE_CONTROL = "00002a39-0000-1000-8000-00805f9b34fb"
+UUID_CURRENT_TIME = "00002a2b-0000-1000-8000-00805f9b34fb"
 
 # Magic protocol bytes :sparkles: (<- just pretend that it's an emoji)
 CHUNK_ENDPOINT_AUTH = 0x0082

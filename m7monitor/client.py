@@ -63,6 +63,13 @@ class MiBand7Client:
             if not authed:
                 raise RuntimeError("authentication failed")
 
+            if self._has_char(constants.UUID_CURRENT_TIME):
+                try:
+                    val = await self.client.read_gatt_char(constants.UUID_CURRENT_TIME)
+                    constants.debug(f"[current time] {val.hex()}")
+                except Exception as e:
+                    constants.debug(f"[current time error] {e}")
+
             self.state.set_status("connected")
             await self._start_heart_sources()
             self.state.set_status("polling")
@@ -142,6 +149,9 @@ class MiBand7Client:
                     return True
             except Exception as e:
                 constants.debug(f"auth_chunked_error: {repr(e)}")
+            
+            # If chunked failed, wait 1 second to let watch clear state and try legacy fallback
+            await asyncio.sleep(1.0)
                 
         if self._has_char(constants.UUID_RAW_SENSOR_CONTROL, "notify"):
             ok = await self._authenticate_legacy()
@@ -170,44 +180,37 @@ class MiBand7Client:
         constants.debug("[auth] sending chunked public key")
         await self._write_chunked(constants.CHUNK_ENDPOINT_AUTH, initial)
 
-        remote_payload = await self._wait_auth_challenge(timeout=15)
-        if not remote_payload:
-            return False
-
-        remote_random = remote_payload[:16]
-        remote_public_raw = remote_payload[16:64]
-        remote_public_numbers = ec.EllipticCurvePublicNumbers(
-            int.from_bytes(remote_public_raw[:24], "big"),
-            int.from_bytes(remote_public_raw[24:], "big"),
-            ec.SECP192R1(),
-        )
-        remote_public_key = remote_public_numbers.public_key(default_backend())
-        shared_secret = private_key.exchange(ec.ECDH(), remote_public_key)
-        if len(shared_secret) < 24:
-            shared_secret = shared_secret.rjust(24, b"\x00")
-
-        auth_key = bytes.fromhex(constants.AUTH_KEY)
-        session_key = bytes(shared_secret[8 + i] ^ auth_key[i] for i in range(16))
-        out1 = aes_cbc_encrypt(auth_key, remote_random)
-        out2 = aes_cbc_encrypt(session_key, remote_random)
-        second = bytes([0x05]) + out1 + out2
-
-        constants.debug("[auth] sending chunked proof")
-        await self._write_chunked(constants.CHUNK_ENDPOINT_AUTH, second)
-        ok = await self._wait_auth_success(timeout=15)
-        constants.debug(f"[auth] chunked result: {ok}")
-        return ok
-
-    async def _wait_auth_challenge(self, timeout: float) -> Optional[bytes]:
         buffer = bytearray()
         expected = None
-        deadline = time.monotonic() + timeout
+        last_seq = -1
+
+        deadline = time.monotonic() + 20.0
         while time.monotonic() < deadline:
-            raw = await asyncio.wait_for(self.auth_queue.get(), timeout=max(0.1, deadline - time.monotonic()))
+            try:
+                timeout = max(0.1, deadline - time.monotonic())
+                raw = await asyncio.wait_for(self.auth_queue.get(), timeout=timeout)
+            except asyncio.TimeoutError:
+                constants.debug("[auth] timeout waiting for packet")
+                return False
+
             constants.debug(f"[auth<-] {raw.hex()}")
             if len(raw) < 5 or raw[0] != 0x03:
                 continue
+
             seq = raw[4]
+
+            # Success packet: raw[0]=0x03, seq=0, raw[9:11]=auth_endpoint, raw[11:14]=10 05 01
+            if (
+                seq == 0
+                and len(raw) >= 14
+                and raw[9] == (constants.CHUNK_ENDPOINT_AUTH & 0xFF)
+                and raw[10] == (constants.CHUNK_ENDPOINT_AUTH >> 8)
+                and raw[11:14] == bytes([0x10, 0x05, 0x01])
+            ):
+                constants.debug("[auth] Successfully authenticated (received 10 05 01)")
+                return True
+
+            # Challenge start packet: raw[0]=0x03, seq=0, raw[9:11]=auth_endpoint, raw[11:14]=10 04 01
             if (
                 seq == 0
                 and len(raw) >= 14
@@ -218,31 +221,47 @@ class MiBand7Client:
                 expected = max(0, raw[5] - 3)
                 buffer.clear()
                 buffer.extend(raw[14:])
+                last_seq = 0
             elif seq > 0:
+                if seq != last_seq + 1:
+                    constants.debug(f"[auth] Unexpected sequence number: {seq}, expected {last_seq + 1}")
+                    return False
                 buffer.extend(raw[5:])
+                last_seq = seq
             else:
                 continue
 
             if expected is not None and len(buffer) >= expected:
                 payload = bytes(buffer[:expected])
-                if len(payload) >= 64:
-                    return payload
-        return None
+                if len(payload) < 64:
+                    constants.debug(f"[auth] Challenge payload too short: {len(payload)}")
+                    return False
 
-    async def _wait_auth_success(self, timeout: float) -> bool:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            raw = await asyncio.wait_for(self.auth_queue.get(), timeout=max(0.1, deadline - time.monotonic()))
-            constants.debug(f"[auth<-] {raw.hex()}")
-            if (
-                len(raw) >= 14
-                and raw[0] == 0x03
-                and raw[9] == (constants.CHUNK_ENDPOINT_AUTH & 0xFF)
-                and raw[10] == (constants.CHUNK_ENDPOINT_AUTH >> 8)
-                and raw[11:14] == bytes([0x10, 0x05, 0x01])
-            ):
-                return True
-        return False
+                remote_random = payload[:16]
+                remote_public_raw = payload[16:64]
+                remote_public_numbers = ec.EllipticCurvePublicNumbers(
+                    int.from_bytes(remote_public_raw[:24], "big"),
+                    int.from_bytes(remote_public_raw[24:], "big"),
+                    ec.SECP192R1(),
+                )
+                remote_public_key = remote_public_numbers.public_key(default_backend())
+                shared_secret = private_key.exchange(ec.ECDH(), remote_public_key)
+                if len(shared_secret) < 24:
+                    shared_secret = shared_secret.rjust(24, b"\x00")
+
+                auth_key = bytes.fromhex(constants.AUTH_KEY)
+                session_key = bytes(shared_secret[8 + i] ^ auth_key[i] for i in range(16))
+                out1 = aes_cbc_encrypt(auth_key, remote_random)
+                out2 = aes_cbc_encrypt(session_key, remote_random)
+                second = bytes([0x05]) + out1 + out2
+
+                constants.debug("[auth] sending chunked proof")
+                await self._write_chunked(constants.CHUNK_ENDPOINT_AUTH, second)
+
+                # Reset challenge reassembly state, wait for success packet
+                buffer.clear()
+                expected = None
+                last_seq = -1
 
     async def _authenticate_legacy(self) -> bool:
         auth_queue = asyncio.Queue()
@@ -322,6 +341,7 @@ class MiBand7Client:
             remaining -= copy_bytes
             header_size = 5
             count += 1
+            await asyncio.sleep(0.05)
         self.handle = (self.handle + 1) & 0xFF
 
     async def _start_heart_sources(self):
